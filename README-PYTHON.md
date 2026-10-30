@@ -14,7 +14,7 @@ Esta branch contém um MVP nativo em Python/Kivy para Android e desktop.
 Nome, classe/arquétipo, nível, raça/espécie, pontos de vida e anotações livres. A estrutura JSON permite acrescentar atributos e campos específicos de outros sistemas de RPG nas próximas etapas.
 
 ## Gerar o APK
-A GitHub Actions executa o Buildozer ao receber alterações nesta branch. Acesse **Actions → Build Mesa RPG Python APK** e baixe o artefato `Mesa-RPG-Python-APK) quando a execução terminar com sucesso.
+A GitHub Actions executa o Buildozer ao receber alterações nesta branch. Acesse **Actions → Build Mesa RPG Python APK** e baixe o artefato `Mesa-RPG-Python-APK` quando a execução terminar com sucesso.
 
 ## Limitações e segurança
 - Este é um MVP funcional de fichas simples, não uma migração completa de todos os recursos da aplicação web original.
