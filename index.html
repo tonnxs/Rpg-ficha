@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesa de Fichas — D&D 5e + Lanternas</title>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<!--
+=== CONFIGURAÇÃO (leia) ===
+Sem configurar o Firebase, o site roda em MODO DEMO (dados só neste navegador).
+Para fichas online reais: crie um projeto gratuito em console.firebase.google.com,
+ative Authentication (E-mail/Senha) e Firestore, e cole abaixo o objeto firebaseConfig.
+Regras do Firestore (troque o e-mail pelo do mestre):
+rules_version='2'; service cloud.firestore { match /databases/{d}/documents {
+  match /fichas/{id} { allow read, write: if request.auth != null &&
+   (request.auth.uid == id || request.auth.token.email in ['mestre@exemplo.com']); } } }
+-->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{--bg:#e9eee9;--card:#fbfcfa;--ink:#17231e;--mut:#5c6b63;--line:#c9d3cb;--deep:#0f3d2e;--ring:#2fe38b;--night:#07140f;--err:#a3321f}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#101a16;--card:#18241f;--ink:#e6eee8;--mut:#9db0a5;--line:#2c3d35;--deep:#0b2a20}}
+*{box-sizing:border-box}
+html{height:100%}
+body{margin:0;font:16px/1.45 'Source Sans 3',system-ui,sans-serif;background:var(--bg);color:var(--ink);padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+h1,h2,h3{font-family:Spectral,Georgia,serif;margin:0}
+header{background:var(--deep);color:#eaf5ee;padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+header h1{font-size:1.25rem;flex:1}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--deep);color:#fff;border:0;border-radius:6px;padding:8px 14px;cursor:pointer}
+button.alt{background:transparent;color:inherit;border:1px solid currentColor}
+button:disabled{opacity:.4;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+input,select,textarea{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:6px 8px;width:100%}
+textarea{min-height:90px;resize:vertical}
+main{max-width:1000px;margin:0 auto;padding:14px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px}
+.grid{display:grid;gap:10px}.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g6{grid-template-columns:repeat(3,1fr)}
+@media(min-width:700px){.g6{grid-template-columns:repeat(6,1fr)}}
+label{font-size:.85rem;color:var(--mut);display:block}
+.attr{text-align:center;border:1px solid var(--line);border-radius:8px;padding:8px}
+.attr .mod{font:700 1.6rem Spectral,serif}
+.attr input{text-align:center}
+.row{display:flex;align-items:center;gap:8px;padding:3px 0}
+.row b{min-width:34px;text-align:right}
+.row span{flex:1;cursor:pointer}
+.cols{columns:2 240px;gap:20px}
+.login{max-width:380px;margin:8vh auto}
+.login .box{display:grid;gap:10px}
+.err{color:var(--err)}
+.list button{display:block;width:100%;text-align:left;margin-bottom:6px}
+#toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0));transform:translateX(-50%);background:var(--deep);color:#fff;padding:10px 16px;border-radius:8px;max-width:90%;display:none;z-index:9}
+.lantern{background:var(--night);color:#d9f7e6;border:1px solid #14553b;border-radius:10px;padding:16px;margin-bottom:14px}
+.lantern label,.lantern .mut{color:#8fb9a2}
+.lantern input,.lantern select,.lantern textarea{background:#0d2219;border-color:#1c4a35;color:#e6fff0}
+.lantern h2{display:flex;align-items:center;gap:10px}
+.ringdot{width:22px;height:22px;border-radius:50%;border:5px solid var(--c,#2fe38b);box-shadow:0 0 14px var(--c,#2fe38b);background:transparent;display:inline-block}
+.ringdot.gray{--c:#7d8a84;box-shadow:none}
+.pw{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid #1c4a35;padding:6px 0}
+.pw button{background:#14553b;padding:5px 12px;white-space:nowrap}
+.pw small{color:#8fb9a2;display:block}
+.bar{height:10px;border-radius:5px;background:#0d2219;overflow:hidden;border:1px solid #1c4a35}
+.bar i{display:block;height:100%;background:var(--c,#2fe38b)}
+.hide{display:none!important}
+@media(prefers-reduced-motion:no-preference){.ringdot{transition:box-shadow .3s}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mesa de Fichas · D&amp;D 5e</h1>
+  <span id="who"></span>
+  <button class="alt hide" id="btnBack">Lista de fichas</button>
+  <button class="alt hide" id="btnOut">Sair</button>
+</header>
+<main id="app"></main>
+<div id="toast" role="status"></div>
+
+<script>
+/* ===== CONFIG ===== */
+const CFG = {
+  firebase: null, // cole aqui o firebaseConfig: { apiKey:"...", authDomain:"...", projectId:"...", appId:"..." }
+  MASTERS: ['mestre@exemplo.com'] // e-mails com acesso de mestre (use o mesmo nas regras do Firestore)
+};
+
+/* ===== DADOS 5e ===== */
+const ATTR=[['for','Força'],['des','Destreza'],['con','Constituição'],['int','Inteligência'],['sab','Sabedoria'],['car','Carisma']];
+const SK=[['Acrobacia','des'],['Adestrar Animais','sab'],['Arcanismo','int'],['Atletismo','for'],['Atuação','car'],['Enganação','car'],['Furtividade','des'],['História','int'],['Intimidação','car'],['Intuição','sab'],['Investigação','int'],['Medicina','sab'],['Natureza','int'],['Percepção','sab'],['Persuasão','car'],['Prestidigitação','des'],['Religião','int'],['Sobrevivência','sab']];
+
+/* ===== DADOS DAS LANTERNAS (do PDF) ===== */
+const COR={
+ vermelho:['Vermelho — Raiva','#e5483b'],amarelo:['Amarelo — Medo','#f0c52b'],verde:['Verde — Coragem','#2fe38b'],
+ roxo:['Roxo — Compaixão','#a566e8'],rosa:['Rosa — Amor','#f27fb4'],azul:['Azul — Esperança','#4aa3ff'],
+ laranja:['Laranja — Ganância','#f2993a'],branco:['Branco — Vida','#f2f2f2'],preto:['Preto — Morte','#8a8a8a']};
+const GERAL=[
+ ['Criar constructo (<1 m)',1],['Criar constructo (1×10 m)',3],['Criar constructo (até 20 m)',6],
+ ['Voar: ativar',1],['Voar: curta distância',1],['Voar: longa distância',3],['Voar: sair do planeta',5],
+ ['Analisar: coisa simples',2],['Analisar: coisa complexa',4],['Analisar: ser vivo',6],
+ ['Telecinese 1–50 kg',2],['Telecinese 50–300 kg',4],['Telecinese 300 kg–1 t',8],
+ ['Portal (+Pe por distância)',5],['Intangibilidade',5],['Criar anel',20],['Criar bateria',30]];
+const DANO=[['1d4',2],['1d6',4],['1d8',7],['1d10',10],['1d12',12],['1d20',20],['1d100',30]];
+const TAM=[['Menos de 1 m',1],['1×10 m',3],['Até 20 m',6]];
+const POD={
+ vermelho:[['Sangue ácido (1d4)',0],['Chamas vermelhas (1d6)',0]],
+ amarelo:[['Incitar medo: inimigos com −4 por 1 turno',0],['Pesadelo: paralisia por 2 turnos',0]],
+ verde:[['Sobrecarregar anel azul (+4 Pe temp.)',0],['Dissipar poderes vermelhos',0],['Dissipar maldições',0]],
+ azul:[['Sobrecarregar anel verde (+4 Pe temp.)',0],['Descarregar anel amarelo',0],['Curar ferimentos +1d20 PV',4]],
+ laranja:[['Cópia gananciosa',5],['Exército pessoal (por criatura)',7],['Roubar (objeto à vista)',7]],
+ rosa:[['Encantar: controla 3 turnos',4]],roxo:[],
+ preto:[['Trazer mortos à vida (24 h)',7],['Voltar à vida',7]],
+ branco:[['Curar ferida 1d20 PV',5],['Imortalidade',0],['Manipular plantas',0],['Curar doenças',0],['Purificar coisas',0],['Criar qualquer anel e bateria',0]]};
+const CONFIG_ANEL=[['Anel volta ao portador quando retirado',5],['Ao morrer, o anel passa a outra pessoa',5]];
+
+/* ===== ESTADO ===== */
+let S={}, curId=null, user=null, isMaster=false, saveT=null, fb=null;
+const $=s=>document.querySelector(s);
+const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num=v=>parseInt(v)||0;
+const mod=v=>Math.floor((num(v)-10)/2);
+const sg=n=>(n>=0?'+':'')+n;
+const prof=()=>2+Math.floor((Math.max(1,num(S.level))-1)/4);
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2800)}
+const roll=n=>1+Math.floor(Math.random()*n);
+
+function blank(){const s={name:'',cls:'',race:'',bg:'',align:'',level:1,xp:0,hp:0,hpmax:0,ac:10,speed:30,attacks:'',equip:'',feat:'',notes:'',l_on:false,l_color:'verde',l_pe:0,l_pemax:0,l_ch:1,l_cfg:{}};ATTR.forEach(a=>s['a_'+a[0]]=10);return s}
+
+/* ===== ARMAZENAMENTO ===== */
+/* Modo LAN: ativado automaticamente quando a página é servida por server.js */
+const lanApi={
+ async call(m,u,b){const t=localStorage.getItem('rpg_tok');const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json',...(t?{Authorization:'Bearer '+t}:{})},body:b?JSON.stringify(b):undefined});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.erro||'Erro '+r.status);return j},
+ async login(email,pw,create){const j=await this.call('POST','/api/login',{email,pw,create});localStorage.setItem('rpg_tok',j.token);return{id:j.id,email:j.email,master:j.master}},
+ async get(id){return (await this.call('GET','/api/ficha/'+encodeURIComponent(id))).data},
+ async put(id,email,data){await this.call('PUT','/api/ficha/'+encodeURIComponent(id),{data})},
+ async list(){return (await this.call('GET','/api/fichas')).fichas},
+ async out(){localStorage.removeItem('rpg_tok')}
+};
+const store={
+ demo:true,lan:false,
+ async init(){
+  try{const r=await fetch('/api/ping');if(r.ok&&(await r.json()).rpg){Object.assign(this,lanApi);this.demo=false;this.lan=true;return}}catch(e){}
+  if(CFG.firebase&&window.firebase){firebase.initializeApp(CFG.firebase);fb={a:firebase.auth(),d:firebase.firestore()};this.demo=false}
+ },
+ async login(email,pw,create){
+  if(!this.demo){const r=create?await fb.a.createUserWithEmailAndPassword(email,pw):await fb.a.signInWithEmailAndPassword(email,pw);return{id:r.user.uid,email:r.user.email}}
+  const U=JSON.parse(localStorage.getItem('rpg_users')||'{}');
+  if(email==='mestre@exemplo.com'&&!U[email])U[email]={pw:'mestre123',id:'mestre'};
+  if(create){if(U[email])throw Error('E-mail já cadastrado.');U[email]={pw,id:'u'+Date.now()};localStorage.setItem('rpg_users',JSON.stringify(U))}
+  if(!U[email]||U[email].pw!==pw)throw Error('E-mail ou senha incorretos.');
+  return{id:U[email].id,email}
+ },
+ async get(id){
+  if(!this.demo){const d=await fb.d.collection('fichas').doc(id).get();return d.exists?d.data().data:null}
+  return (JSON.parse(localStorage.getItem('rpg_fichas')||'{}')[id]||{}).data||null
+ },
+ async put(id,email,data){
+  if(!this.demo)return fb.d.collection('fichas').doc(id).set({owner:email,data});
+  const F=JSON.parse(localStorage.getItem('rpg_fichas')||'{}');F[id]={owner:email,data};localStorage.setItem('rpg_fichas',JSON.stringify(F))
+ },
+ async list(){
+  if(!this.demo){const q=await fb.d.collection('fichas').get();return q.docs.map(d=>({id:d.id,owner:d.data().owner,name:d.data().data?.name}))}
+  const F=JSON.parse(localStorage.getItem('rpg_fichas')||'{}');return Object.entries(F).map(([id,v])=>({id,owner:v.owner,name:v.data?.name}))
+ },
+ async out(){if(!this.demo)await fb.a.signOut()}
+};
+
+/* ===== TELAS ===== */
+function showLogin(){
+ $('#who').textContent='';['#btnBack','#btnOut'].forEach(s=>$(s).classList.add('hide'));
+ $('#app').innerHTML=`<div class="login"><div class="box"><h2>Entrar na mesa</h2>
+ <div><label for="em">E-mail</label><input id="em" type="email" autocomplete="username"></div>
+ <div><label for="pw">Senha (mín. 6 caracteres)</label><input id="pw" type="password" autocomplete="current-password"></div>
+ <p class="err" id="lerr"></p>
+ <button id="go">Entrar</button><button class="alt" id="mk">Criar conta de jogador</button>
+ ${store.demo?'<p class="mut"><small>Modo demonstração: os dados ficam só neste navegador. Mestre de teste: mestre@exemplo.com / mestre123.</small></p>':''}</div></div>`;
+ const act=async c=>{try{const u=await store.login($('#em').value.trim(),$('#pw').value,c);enter(u)}catch(e){$('#lerr').textContent=e.message}};
+ $('#go').onclick=()=>act(false);$('#mk').onclick=()=>act(true);
+}
+async function enter(u){
+ user=u;isMaster=u.master??CFG.MASTERS.includes(u.email);
+ $('#who').textContent=(isMaster?'Mestre · ':'')+u.email;$('#btnOut').classList.remove('hide');
+ if(isMaster)showList();else openSheet(u.id)
+}
+async function showList(){
+ $('#btnBack').classList.add('hide');
+ const L=await store.list();
+ $('#app').innerHTML=`<div class="box list"><h2>Fichas dos jogadores</h2><p class="mut">Selecione uma ficha para ver e editar.</p>${
+  L.length?L.map(f=>`<button data-id="${esc(f.id)}">${esc(f.name||'(sem nome)')} <small>— ${esc(f.owner)}</small></button>`).join(''):'<p>Nenhum jogador criou ficha ainda.</p>'}</div>`;
+ document.querySelectorAll('.list button').forEach(b=>b.onclick=()=>openSheet(b.dataset.id));
+}
+async function openSheet(id){
+ curId=id;$('#btnBack').classList.toggle('hide',!isMaster);
+ S=Object.assign(blank(),await store.get(id)||{});
+ renderSheet();
+}
+
+/* ===== FICHA ===== */
+function field(k,l,t='text'){return `<div><label>${l}<input data-f="${k}" type="${t}"></label></div>`}
+function renderSheet(){
+ $('#app').innerHTML=`
+ <div class="box"><div class="grid g3">${field('name','Nome do personagem')}${field('cls','Classe')}${field('race','Raça')}${field('bg','Antecedente')}${field('align','Tendência')}
+ <div class="grid g2">${field('level','Nível','number')}${field('xp','XP','number')}</div></div></div>
+ <div class="box"><div class="grid g6">${ATTR.map(a=>`<div class="attr"><label>${a[1]}<input data-f="a_${a[0]}" type="number"></label><div class="mod" id="m_${a[0]}"></div></div>`).join('')}</div></div>
+ <div class="box"><div class="grid g4">${field('hp','PV atuais','number')}${field('hpmax','PV máximos','number')}${field('ac','Classe de Armadura','number')}${field('speed','Deslocamento (m/ft)','number')}</div>
+ <p class="mut" id="derived"></p></div>
+ <div class="box"><h3>Salvaguardas e perícias</h3><p class="mut">Marque a proficiência. Toque no nome para rolar 1d20.</p><div class="cols" id="skills"></div></div>
+ <div class="box"><div class="grid g2"><label>Ataques e magias<textarea data-f="attacks"></textarea></label><label>Equipamento<textarea data-f="equip"></textarea></label>
+ <label>Características e talentos<textarea data-f="feat"></textarea></label><label>Anotações<textarea data-f="notes"></textarea></label></div></div>
+ <div class="box"><label><input type="checkbox" data-f="l_on" style="width:auto"> Este personagem é um Lanterna (ativa a mecânica de anel e bateria)</label></div>
+ <div id="lant"></div>
+ <p class="mut" id="saved"></p>`;
+ const sk=$('#skills');
+ sk.innerHTML=ATTR.map(a=>`<div class="row"><input type="checkbox" data-f="sv_${a[0]}" style="width:auto"><b id="sv_${a[0]}_t"></b><span data-roll="sv_${a[0]}" data-a="${a[0]}">Salvaguarda de ${a[1]}</span></div>`).join('')+'<hr>'+
+  SK.map((s,i)=>`<div class="row"><input type="checkbox" data-f="sk_${i}" style="width:auto"><b id="sk_${i}_t"></b><span data-roll="sk_${i}" data-a="${s[1]}">${s[0]} (${s[1].toUpperCase()})</span></div>`).join('');
+ document.querySelectorAll('[data-f]').forEach(el=>{
+  const k=el.dataset.f;
+  if(el.type==='checkbox')el.checked=!!S[k];else el.value=S[k]??'';
+  el.addEventListener('input',()=>{S[k]=el.type==='checkbox'?el.checked:(el.type==='number'?num(el.value):el.value);calc();if(k.startsWith('l_')||k==='level')lantern();queueSave()});
+ });
+ document.querySelectorAll('[data-roll]').forEach(el=>el.onclick=()=>{const k=el.dataset.roll,m=mod(S['a_'+el.dataset.a])+(S[k]?prof():0),d=roll(20);toast(`${el.textContent.split(' (')[0]}: d20 ${d} ${sg(m)} = ${d+m}`)});
+ calc();lantern();
+}
+function calc(){
+ ATTR.forEach(a=>{$('#m_'+a[0]).textContent=sg(mod(S['a_'+a[0]]));$('#sv_'+a[0]+'_t').textContent=sg(mod(S['a_'+a[0]])+(S['sv_'+a[0]]?prof():0))});
+ SK.forEach((s,i)=>$('#sk_'+i+'_t').textContent=sg(mod(S['a_'+s[1]])+(S['sk_'+i]?prof():0)));
+ const per=SK.findIndex(s=>s[0]==='Percepção');
+ $('#derived').textContent=`Bônus de proficiência ${sg(prof())} · Iniciativa ${sg(mod(S.a_des))} · Percepção passiva ${10+mod(S.a_sab)+(S['sk_'+per]?prof():0)}`;
+}
+
+/* ===== LANTERNA ===== */
+function chMax(){return Math.max(1,num(S.level))} // 1 carga no nível 1, +1 por nível
+function lantern(){
+ const box=$('#lant');
+ if(!S.l_on){box.innerHTML='';return}
+ const [nome,cor]=COR[S.l_color]||COR.verde, gray=num(S.l_pe)<=0;
+ S.l_ch=Math.min(num(S.l_ch),chMax());
+ const pct=S.l_pemax?Math.max(0,Math.min(100,S.l_pe/S.l_pemax*100)):0;
+ const pw=[...GERAL,...(POD[S.l_color]||[])];
+ box.innerHTML=`<section class="lantern" style="--c:${cor}">
+ <h2><span class="ringdot ${gray?'gray':''}"></span>Anel e Bateria ${gray?'<small class="mut">(anel cinza: sem energia, vulnerável a outras energias)</small>':''}</h2>
+ <div class="grid g3" style="margin:12px 0">
+  <label>Energia da bateria<select id="lcor">${Object.entries(COR).map(([k,v])=>`<option value="${k}" ${k===S.l_color?'selected':''}>${v[0]}</option>`).join('')}</select></label>
+  <label>Pe atuais / máximos<span class="grid g2"><input id="lpe" type="number" value="${S.l_pe}"><input id="lpm" type="number" value="${S.l_pemax}"></span></label>
+  <label>Cargas da bateria (máx. ${chMax()})<input id="lch" type="number" min="0" max="${chMax()}" value="${S.l_ch}"></label>
+ </div>
+ <div class="bar" aria-label="Pe"><i style="width:${pct}%"></i></div>
+ <p class="mut"><small>Cada carga leva 1 dia inteiro para recuperar. Nível 1: role 1d6 de Pe. Cada treino com o anel: role 1d4 para aumentar o Pe máximo. Com 0 Pe, um teste pode render +1d4 (uma vez por recarga).</small></p>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+  <button id="b6">Rolar 1d6 de Pe (nível 1)</button><button id="b4">Treino: +1d4 Pe máx.</button>
+  <button id="bz">Teste com 0 Pe: +1d4</button><button id="brc">Recarregar (1 carga)</button><button id="bom">Sacrifício ômega</button></div>
+ <h3>Construto sob medida</h3>
+ <div class="grid g3" style="margin:6px 0"><label>Tamanho<select id="ctam">${TAM.map(t=>`<option value="${t[1]}">${t[0]} (${t[1]} Pe)</option>`).join('')}</select></label>
+  <label>Dano<select id="cdan"><option value="0">Sem dano</option>${DANO.map(t=>`<option value="${t[1]}">${t[0]} (${t[1]} Pe)</option>`).join('')}</select></label>
+  <label>Custo total<button id="cgo" style="width:100%">Criar construto</button></label></div>
+ <p class="mut"><small>O mestre pode alterar custos por duração, resistência e desvantagens. Criar construtos e voar exigem teste em combate.</small></p>
+ <h3>Poderes (${esc(nome.split(' — ')[0])})</h3>
+ ${pw.map((p,i)=>`<div class="pw"><div>${esc(p[0])}<small>${p[1]?p[1]+' Pe':'sem custo fixo — decisão do mestre'}</small></div><button data-pw="${i}">Usar</button></div>`).join('')}
+ <h3 style="margin-top:12px">Configurações do anel</h3>
+ ${CONFIG_ANEL.map((c,i)=>`<div class="pw"><label style="color:inherit"><input type="checkbox" data-cfg="${i}" style="width:auto" ${S.l_cfg[i]?'checked':''}> ${c[0]} (${c[1]} Pe)</label></div>`).join('')}
+ <p class="mut"><small>Regras de cor: amarelo é mais forte que verde; azul e verde ficam fortes juntos; ganância supera as outras sete tropas. Misturar emoções infecta a bateria (chance 1/7 de destruição).</small></p>
+ </section>`;
+ const set=(k,v)=>{S[k]=v;queueSave();lantern()};
+ $('#lcor').onchange=e=>set('l_color',e.target.value);
+ $('#lpe').onchange=e=>set('l_pe',Math.max(0,num(e.target.value)));
+ $('#lpm').onchange=e=>set('l_pemax',Math.max(0,num(e.target.value)));
+ $('#lch').onchange=e=>set('l_ch',Math.max(0,Math.min(chMax(),num(e.target.value))));
+ $('#b6').onclick=()=>{const r=roll(6);S.l_pemax=r;S.l_pe=r;toast('1d6 = '+r+' Pe');queueSave();lantern()};
+ $('#b4').onclick=()=>{const r=roll(4);S.l_pemax+=r;toast('Treino: +'+r+' Pe máximo');queueSave();lantern()};
+ $('#bz').onclick=()=>{if(S.l_pe>0)return toast('Só com 0 Pe.');const r=roll(4);S.l_pe=r;S.l_pemax=Math.max(S.l_pemax,r);toast('Teste bem-sucedido: +'+r+' Pe (uma vez por recarga)');queueSave();lantern()};
+ $('#brc').onclick=()=>{if(S.l_ch>=chMax())return toast('Bateria já está cheia.');S.l_ch++;S.l_pe=S.l_pemax;toast('+1 carga e Pe restaurado (após 1 dia de descanso)');queueSave();lantern()};
+ $('#bom').onclick=()=>{if(!confirm('Gastar todos os Pe e cargas para o Sacrifício ômega?'))return;const t=Math.max(1,Math.floor(S.l_ch/3));S.l_pe=0;S.l_ch=0;toast(`Sacrifício ômega: ${t} turno(s) de construtos sem custo e sem teste.`);queueSave();lantern()};
+ $('#cgo').onclick=()=>spend(num($('#ctam').value)+num($('#cdan').value),'Construto');
+ box.querySelectorAll('[data-pw]').forEach(b=>b.onclick=()=>{const p=pw[b.dataset.pw];spend(p[1],p[0])});
+ box.querySelectorAll('[data-cfg]').forEach(c=>c.onchange=()=>{const i=c.dataset.cfg;if(c.checked){if(!spendQ(CONFIG_ANEL[i][1])){c.checked=false;return}}S.l_cfg[i]=c.checked;queueSave();lantern()});
+}
+function spendQ(n){if(num(S.l_pe)<n){toast(`Pe insuficiente (precisa de ${n}).`);return false}S.l_pe-=n;return true}
+function spend(n,label){if(!spendQ(n))return;toast(`${label}: −${n} Pe (restam ${S.l_pe})`);queueSave();lantern()}
+
+/* ===== SALVAR ===== */
+function queueSave(){clearTimeout(saveT);saveT=setTimeout(async()=>{try{await store.put(curId,isMaster&&curId!==user.id?(await ownerOf(curId)):user.email,S);$('#saved').textContent='Salvo às '+new Date().toLocaleTimeString('pt-BR')}catch(e){$('#saved').textContent='Erro ao salvar: '+e.message}},600)}
+async function ownerOf(id){const L=await store.list();return (L.find(f=>f.id===id)||{}).owner||user.email}
+
+/* ===== INÍCIO ===== */
+$('#btnOut').onclick=async()=>{await store.out();user=null;showLogin()};
+$('#btnBack').onclick=showList;
+store.init().then(()=>{
+ if(store.lan){if(localStorage.getItem('rpg_tok'))store.call('GET','/api/me').then(enter).catch(showLogin);else showLogin()}
+ else if(!store.demo)fb.a.onAuthStateChanged(u=>{if(u)enter({id:u.uid,email:u.email});else showLogin()});
+ else showLogin();
+});
+</script>
+</body>
+</html>
