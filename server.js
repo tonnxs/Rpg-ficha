@@ -80,6 +80,7 @@ async function handle(req,res) {
       id = 'u_' + crypto.randomBytes(12).toString('hex');
       const cred = hashPassword(password);
       db.users[id] = {email, salt:cred.salt, hash:cred.hash, role:first?'master':'player', createdAt:new Date().toISOString()};
+      db.sheets[id] = {owner:email, data:{}, updatedAt:new Date().toISOString()};
       persist();
       record=db.users[id];
     } else {
