@@ -1,9 +1,32 @@
-# Mesa RPG — versão Python
+# Mesa RPG — versão Python/Kivy
 
-Esta branch inicia a migração para Python/Kivy.
+Esta branch contém um MVP nativo em Python/Kivy para Android e desktop.
 
-## Construção do APK
-A workflow GitHub Actions `Build Mesa RPG Python APK` tenta gerar um APK de depuração a partir de `buildozer.spec`. Abra Actions no GitHub e selecione a execução mais recente; o arquivo aparece em Artifacts se a compilação terminar com sucesso.
+## Funções implementadas
+- Criar/hospedar uma mesa na rede Wi-Fi local.
+- Gerar um código de acesso para a mesa.
+- Conectar outro aparelho pelo IP do anfitrião e código.
+- Criar, listar, abrir, editar e excluir fichas.
+- Persistir fichas em SQLite no aparelho que hospeda a mesa.
+- API local para listar e consultar fichas, salvar alterações e excluir registros.
 
-## Estado atual
-Esta é uma base técnica inicial, não uma migração funcional completa da aplicação web anterior. A interface Kivy e o servidor local estão em desenvolvimento. A API de fichas ainda precisa de autenticação, autorização por mesa, endpoints completos de leitura/edição e testes em aparelhos reais antes de ser usada com dados pessoais.
+## Campos atuais da ficha
+Nome, classe/arquétipo, nível, raça/espécie, pontos de vida e anotações livres. A estrutura JSON permite acrescentar atributos e campos específicos de outros sistemas de RPG nas próximas etapas.
+
+## Gerar o APK
+A GitHub Actions executa o Buildozer ao receber alterações nesta branch. Acesse **Actions → Build Mesa RPG Python APK** e baixe o artefato `Mesa-RPG-Python-APK) quando a execução terminar com sucesso.
+
+## Limitações e segurança
+- Este é um MVP funcional de fichas simples, não uma migração completa de todos os recursos da aplicação web original.
+- A sincronização é centralizada no aparelho que hospeda a mesa; esse aparelho precisa manter o aplicativo aberto e estar na mesma rede Wi-Fi.
+- O código de acesso protege as rotas da API, mas o tráfego HTTP na rede local não é criptografado. Use apenas em redes confiáveis.
+- Ainda é necessário testar o APK em aparelhos Android reais, inclusive permissões de rede, suspensão em segundo plano e compatibilidade entre versões.
+- Não há autenticação individual, permissões por jogador, rolagem de dados ou automação de regras nesta versão.
+
+## Desenvolvimento
+Instale Python e Kivy no ambiente de desenvolvimento e execute:
+
+```bash
+python -m pip install kivy
+python main.py
+```
