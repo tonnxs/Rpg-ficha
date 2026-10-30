@@ -171,7 +171,7 @@ function showLogin(){
  <div><label for="pw">Senha (mín. 6 caracteres)</label><input id="pw" type="password" autocomplete="current-password"></div>
  <p class="err" id="lerr"></p>
  <button id="go">Entrar</button><button class="alt" id="mk">Criar conta de jogador</button>
- ${store.demo?'<p class="mut"><small>Modo demonstração: os dados ficam só neste navegador. Mestre de teste: mestre@exemplo.com / mestre123.</small></p>':''}</div></div>`;
+ ${store.lan?'<p class="mut"><small>Modo Wi-Fi local: a primeira conta cadastrada será o mestre. Os dados ficam no dispositivo que hospeda a mesa.</small></p>':store.demo?'<p class="mut"><small>Modo demonstração: os dados ficam só neste navegador. Mestre de teste: mestre@exemplo.com / mestre123.</small></p>':''}</div></div>`;
  const act=async c=>{try{const u=await store.login($('#em').value.trim(),$('#pw').value,c);enter(u)}catch(e){$('#lerr').textContent=e.message}};
  $('#go').onclick=()=>act(false);$('#mk').onclick=()=>act(true);
 }
