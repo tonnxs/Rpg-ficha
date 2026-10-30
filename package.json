@@ -1,0 +1,8 @@
+{
+  "name": "rpg-ficha-lan",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Servidor local Wi-Fi para Mesa de Fichas RPG",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
