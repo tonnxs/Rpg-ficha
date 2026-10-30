@@ -27,10 +27,15 @@ public class LanServer extends NanoHTTPD {
         super("0.0.0.0", port);
         context = c.getApplicationContext();
         prefs = context.getSharedPreferences("mesa_rpg_db", Context.MODE_PRIVATE);
-        try { db = new JSONObject(prefs.getString("db", "{\"users\":{},\"sheets\":{}}")); }
-        catch (Exception e) { db = new JSONObject(); }
-        if (!db.has("users")) db.put("users", new JSONObject());
-        if (!db.has("sheets")) db.put("sheets", new JSONObject());
+        try {
+            db = new JSONObject(prefs.getString("db", "{\"users\":{},\"sheets\":{}}"));
+            if (!db.has("users")) db.put("users", new JSONObject());
+            if (!db.has("sheets")) db.put("sheets", new JSONObject());
+        } catch (Exception e) {
+            db = new JSONObject();
+            try { db.put("users", new JSONObject()); db.put("sheets", new JSONObject()); }
+            catch (Exception ignored) {}
+        }
     }
 
     private void persist() { prefs.edit().putString("db", db.toString()).apply(); }
