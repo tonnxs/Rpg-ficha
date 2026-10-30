@@ -125,6 +125,11 @@ async function handle(req,res) {
   }
 
   let file = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+  // Nunca exponha o banco local, arquivos de configuração ou o próprio servidor via HTTP.
+  if (file.startsWith('data/') || file === 'data' || file.startsWith('.git') ||
+      ['server.js','package.json','.gitignore','README-LAN.md'].includes(file)) {
+    return send(res,404,{erro:'Arquivo não encontrado.'});
+  }
   const full = path.resolve(ROOT,file);
   if (!full.startsWith(ROOT + path.sep) || !fs.existsSync(full) || !fs.statSync(full).isFile()) return send(res,404,{erro:'Arquivo não encontrado.'});
   const ext=path.extname(full);
