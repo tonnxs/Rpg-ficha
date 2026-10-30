@@ -65,8 +65,12 @@ public class MainActivity extends Activity {
         try {
             if (server == null) { server = new LanServer(this, 8080); server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false); }
             String ip = localIp();
-            Toast.makeText(this, "Mesa ativa na porta 8080", Toast.LENGTH_LONG).show();
-            showWeb("http://127.0.0.1:8080/");
+            new android.app.AlertDialog.Builder(this)
+                .setTitle("Mesa hospedada")
+                .setMessage("Endereço para os jogadores:\\n\\n" + ip + ":8080\\n\\nTodos devem estar na mesma rede Wi-Fi. Mantenha este aplicativo aberto enquanto a mesa estiver em uso.")
+                .setPositiveButton("Abrir mesa", (dialog, which) -> showWeb("http://127.0.0.1:8080/"))
+                .setNegativeButton("Depois", null)
+                .show();
             status.setText("Mesa ativa: " + ip + ":8080");
         } catch (Exception e) {
             new android.app.AlertDialog.Builder(this).setTitle("Não foi possível hospedar")
