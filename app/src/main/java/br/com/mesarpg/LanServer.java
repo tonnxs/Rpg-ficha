@@ -115,7 +115,7 @@ public class LanServer extends NanoHTTPD {
                     if(sid.contains("/") || sid.isEmpty())return error(404,"Ficha não encontrada.");
                     if(method==Method.GET) {
                         if(!sid.equals(id)&&!master(id))return error(403,"Você só pode abrir sua própria ficha.");
-                        JSONObject sh=sheets().optJSONObject(sid); return json(200,obj("data",sh==null?JSONObject.NULL:sh.opt("data",JSONObject.NULL)));
+                        JSONObject sh=sheets().optJSONObject(sid); return json(200,obj("data",sh==null?JSONObject.NULL:sh.has("data") ? sh.opt("data") : JSONObject.NULL));
                     }
                     if(method==Method.PUT) {
                         if(!sid.equals(id)&&!master(id))return error(403,"Você só pode editar sua própria ficha.");
