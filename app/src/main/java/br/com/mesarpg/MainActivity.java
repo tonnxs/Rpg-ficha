@@ -1,6 +1,7 @@
 package br.com.mesarpg;
 
 import android.app.Activity;
+import fi.iki.elonen.NanoHTTPD;
 import android.os.Bundle;
 import android.graphics.Color;
 import android.view.View;
