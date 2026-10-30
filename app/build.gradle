@@ -1,0 +1,18 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'br.com.mesarpg'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'br.com.mesarpg'
+        minSdk 23
+        targetSdk 28
+        versionCode 1
+        versionName '1.0.0'
+    }
+}
+
+dependencies {
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+}
